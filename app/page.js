@@ -1,3 +1,7 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
 const data = [
   {
     parent: "Anti Schling Napf Silikon",
@@ -177,7 +181,26 @@ const td = {
   padding: "10px",
 };
 
+const inputStyle = {
+  padding: "8px 10px",
+  border: "1px solid #cbd5e1",
+  borderRadius: 8,
+  fontSize: 14,
+};
+
 export default function Home() {
+  const [orderDate, setOrderDate] = useState("2026-06-01");
+  const [targetMonths, setTargetMonths] = useState(3);
+
+  const today = useMemo(() => new Date("2026-03-18"), []);
+  const orderDateObj = useMemo(() => new Date(orderDate), [orderDate]);
+
+  const monthsUntilOrder = useMemo(() => {
+    const diffMs = orderDateObj - today;
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    return Math.max(0, diffDays / 30.44);
+  }, [orderDateObj, today]);
+
   const grouped = groupData(data);
 
   return (
@@ -191,30 +214,100 @@ export default function Home() {
     >
       <h1 style={{ marginBottom: 8 }}>Einkaufs-Tool</h1>
       <p style={{ marginBottom: 24, color: "#475569" }}>
-        Parent-Gruppen, Prozentanteile und korrekte Monatslogik.
+        Bestell-Logik Grundversion: Bedarf ab Bestellstart.
       </p>
 
+      <div
+        style={{
+          display: "flex",
+          gap: 16,
+          flexWrap: "wrap",
+          alignItems: "end",
+          background: "white",
+          border: "1px solid #e5e7eb",
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 24,
+        }}
+      >
+        <div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Bestellstart</div>
+          <input
+            type="date"
+            value={orderDate}
+            onChange={(e) => setOrderDate(e.target.value)}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Zielreichweite (Monate)</div>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={targetMonths}
+            onChange={(e) => setTargetMonths(Number(e.target.value))}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Monate bis Bestellstart</div>
+          <div style={{ ...inputStyle, background: "#f8fafc" }}>
+            {monthsUntilOrder.toFixed(1)}
+          </div>
+        </div>
+      </div>
+
       {Object.entries(grouped).map(([parent, items]) => {
-        const totalStock = items.reduce((sum, item) => sum + item.stock, 0);
-        const totalSales = items.reduce((sum, item) => sum + item.sales, 0);
-        const totalMonthlySales = items.reduce(
-          (sum, item) => sum + getMonthlySales(item.sales, item.monthsObserved),
-          0
-        );
+        const enrichedItems = items.map((item) => {
+          const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
+          const projectedSalesUntilOrder = monthlySales * monthsUntilOrder;
+          const projectedStockAtOrder = Math.max(0, item.stock - projectedSalesUntilOrder);
+          const targetStock = monthlySales * targetMonths;
+          const recommendedOrderQty = Math.max(0, targetStock - projectedStockAtOrder);
+          const share = items.reduce((sum, row) => sum + row.sales, 0) > 0
+            ? (item.sales / items.reduce((sum, row) => sum + row.sales, 0)) * 100
+            : 0;
+          const coverage = getCoverageMonths(item.stock, monthlySales);
+          const status = getStatus(item.stock, monthlySales);
+
+          return {
+            ...item,
+            monthlySales,
+            projectedSalesUntilOrder,
+            projectedStockAtOrder,
+            targetStock,
+            recommendedOrderQty,
+            share,
+            coverage,
+            status,
+          };
+        });
+
+        const totalStock = enrichedItems.reduce((sum, item) => sum + item.stock, 0);
+        const totalSales = enrichedItems.reduce((sum, item) => sum + item.sales, 0);
+        const totalMonthlySales = enrichedItems.reduce((sum, item) => sum + item.monthlySales, 0);
         const parentCoverage = getCoverageMonths(totalStock, totalMonthlySales);
 
+        const parentProjectedStockAtOrder = enrichedItems.reduce(
+          (sum, item) => sum + item.projectedStockAtOrder,
+          0
+        );
+        const parentTargetStock = enrichedItems.reduce(
+          (sum, item) => sum + item.targetStock,
+          0
+        );
+        const parentRecommendedOrderQty = enrichedItems.reduce(
+          (sum, item) => sum + item.recommendedOrderQty,
+          0
+        );
+
         const parentStatus =
-          items.some(
-            (item) =>
-              getStatus(item.stock, getMonthlySales(item.sales, item.monthsObserved)).label ===
-              "Kritisch"
-          )
+          enrichedItems.some((item) => item.status.label === "Kritisch")
             ? { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" }
-            : items.some(
-                (item) =>
-                  getStatus(item.stock, getMonthlySales(item.sales, item.monthsObserved)).label ===
-                  "Achtung"
-              )
+            : enrichedItems.some((item) => item.status.label === "Achtung")
             ? { label: "Achtung", bg: "#fef3c7", color: "#b45309" }
             : { label: "OK", bg: "#dcfce7", color: "#166534" };
 
@@ -244,10 +337,13 @@ export default function Home() {
                 marginBottom: 16,
               }}
             >
-              <div><strong>Gesamtbestand:</strong> {totalStock}</div>
-              <div><strong>Verkäufe:</strong> {totalSales}</div>
+              <div><strong>Gesamtbestand:</strong> {totalStock.toFixed(0)}</div>
+              <div><strong>Verkäufe:</strong> {totalSales.toFixed(0)}</div>
               <div><strong>Monatsverkauf:</strong> {totalMonthlySales.toFixed(1)}</div>
               <div><strong>Reichweite:</strong> {parentCoverage.toFixed(1)} Monate</div>
+              <div><strong>Rest bei Bestellstart:</strong> {parentProjectedStockAtOrder.toFixed(0)}</div>
+              <div><strong>Zielbestand:</strong> {parentTargetStock.toFixed(0)}</div>
+              <div><strong>Bestellvorschlag:</strong> {parentRecommendedOrderQty.toFixed(0)}</div>
               <div><span style={badgeStyle(parentStatus)}>{parentStatus.label}</span></div>
             </div>
 
@@ -262,32 +358,33 @@ export default function Home() {
                   <th style={th}>Monat</th>
                   <th style={th}>Anteil am Parent</th>
                   <th style={th}>Reichweite</th>
+                  <th style={th}>Verbrauch bis Bestellstart</th>
+                  <th style={th}>Rest bei Bestellstart</th>
+                  <th style={th}>Zielbestand</th>
+                  <th style={th}>Bestellvorschlag</th>
                   <th style={th}>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => {
-                  const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
-                  const coverage = getCoverageMonths(item.stock, monthlySales);
-                  const share = totalSales > 0 ? (item.sales / totalSales) * 100 : 0;
-                  const status = getStatus(item.stock, monthlySales);
-
-                  return (
-                    <tr key={item.articleNumber}>
-                      <td style={td}>{item.articleNumber}</td>
-                      <td style={td}>{item.variant}</td>
-                      <td style={td}>{item.stock}</td>
-                      <td style={td}>{item.sales}</td>
-                      <td style={td}>{item.monthsObserved}</td>
-                      <td style={td}>{monthlySales.toFixed(1)}</td>
-                      <td style={td}>{share.toFixed(1)}%</td>
-                      <td style={td}>{coverage.toFixed(1)} Monate</td>
-                      <td style={td}>
-                        <span style={badgeStyle(status)}>{status.label}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {enrichedItems.map((item) => (
+                  <tr key={item.articleNumber}>
+                    <td style={td}>{item.articleNumber}</td>
+                    <td style={td}>{item.variant}</td>
+                    <td style={td}>{item.stock}</td>
+                    <td style={td}>{item.sales}</td>
+                    <td style={td}>{item.monthsObserved}</td>
+                    <td style={td}>{item.monthlySales.toFixed(1)}</td>
+                    <td style={td}>{item.share.toFixed(1)}%</td>
+                    <td style={td}>{item.coverage.toFixed(1)} Monate</td>
+                    <td style={td}>{item.projectedSalesUntilOrder.toFixed(1)}</td>
+                    <td style={td}>{item.projectedStockAtOrder.toFixed(1)}</td>
+                    <td style={td}>{item.targetStock.toFixed(1)}</td>
+                    <td style={td}>{item.recommendedOrderQty.toFixed(1)}</td>
+                    <td style={td}>
+                      <span style={badgeStyle(item.status)}>{item.status.label}</span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </details>
