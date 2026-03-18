@@ -352,10 +352,15 @@ export default function Home() {
           const projectedStockAtOrder = Math.max(0, item.stock - projectedSalesUntilOrder);
           const targetStock = monthlySales * targetMonths;
           const recommendedOrderQty = Math.max(0, targetStock - projectedStockAtOrder);
-          const share =
-            items.reduce((sum, row) => sum + row.sales, 0) > 0
-              ? (item.sales / items.reduce((sum, row) => sum + row.sales, 0)) * 100
-              : 0;
+          const totalMonthly = items.reduce(
+  (sum, row) => sum + getMonthlySales(row.sales, row.monthsObserved),
+  0
+);
+
+const share =
+  totalMonthly > 0
+    ? (monthlySales / totalMonthly) * 100
+    : 0;
           const coverage = getCoverageMonths(item.stock, monthlySales);
           const status = getStatus(item.stock, monthlySales);
 
