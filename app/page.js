@@ -212,23 +212,6 @@ const initialData = [
   {
     id: 13,
     parent: "Anti Schling Napf Silikon",
-    variant: "blaugrau",
-    articleNumber: "04001604",
-    supplier: "Jeremy",
-    brand: "ne&no",
-    region: "EU",
-    stock: 0,
-    inbound: 0,
-    sales12m: 671,
-    targetMonths: 12,
-    safetyMonths: 2,
-    productionMonths: 2,
-    shippingMonths: 2,
-    active: true,
-  },
-  {
-    id: 14,
-    parent: "Anti Schling Napf Silikon",
     variant: "malve",
     articleNumber: "04001605",
     supplier: "Jeremy",
@@ -244,7 +227,7 @@ const initialData = [
     active: true,
   },
   {
-    id: 15,
+    id: 14,
     parent: "Anti Schling Napf Silikon",
     variant: "salbeigrün",
     articleNumber: "04001606",
@@ -261,7 +244,7 @@ const initialData = [
     active: true,
   },
   {
-    id: 16,
+    id: 15,
     parent: "Anti Schling Napf Silikon",
     variant: "taupe",
     articleNumber: "04001872",
@@ -278,7 +261,7 @@ const initialData = [
     active: true,
   },
   {
-    id: 17,
+    id: 16,
     parent: "Anti Schling Napf Silikon",
     variant: "steingrau",
     articleNumber: "04001873",
@@ -294,6 +277,78 @@ const initialData = [
     shippingMonths: 2,
     active: true,
   },
+  {
+    id: 17,
+    parent: "Anti Schling Napf Silikon",
+    variant: "cool lilac",
+    articleNumber: "04001929",
+    supplier: "Jeremy",
+    brand: "ne&no",
+    region: "EU",
+    stock: 400,
+    inbound: 0,
+    sales12m: 13,
+    observedMonths: 1,
+    targetMonths: 12,
+    safetyMonths: 2,
+    productionMonths: 2,
+    shippingMonths: 2,
+    active: true,
+  },
+  {
+    id: 18,
+    parent: "Anti Schling Napf Silikon",
+    variant: "steel blue",
+    articleNumber: "04001930",
+    supplier: "Jeremy",
+    brand: "ne&no",
+    region: "EU",
+    stock: 671,
+    inbound: 0,
+    sales12m: 30,
+    observedMonths: 1,
+    targetMonths: 12,
+    safetyMonths: 2,
+    productionMonths: 2,
+    shippingMonths: 2,
+    active: true,
+  },
+  {
+    id: 19,
+    parent: "Anti Schling Napf Silikon",
+    variant: "ruby",
+    articleNumber: "04001931",
+    supplier: "Jeremy",
+    brand: "ne&no",
+    region: "EU",
+    stock: 325,
+    inbound: 0,
+    sales12m: 39,
+    observedMonths: 1,
+    targetMonths: 12,
+    safetyMonths: 2,
+    productionMonths: 2,
+    shippingMonths: 2,
+    active: true,
+  },
+  {
+    id: 20,
+    parent: "Anti Schling Napf Silikon",
+    variant: "graphite grey",
+    articleNumber: "04001932",
+    supplier: "Jeremy",
+    brand: "ne&no",
+    region: "EU",
+    stock: 537,
+    inbound: 0,
+    sales12m: 28,
+    observedMonths: 1,
+    targetMonths: 12,
+    safetyMonths: 2,
+    productionMonths: 2,
+    shippingMonths: 2,
+    active: true,
+  },
 ];
 
 function toNumber(value) {
@@ -301,8 +356,14 @@ function toNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function monthlySales(sales12m) {
-  return toNumber(sales12m) / 12;
+function getObservedMonths(item) {
+  return item.observedMonths ? toNumber(item.observedMonths) : 12;
+}
+
+function monthlySales(item) {
+  const observed = getObservedMonths(item);
+  if (observed <= 0) return 0;
+  return toNumber(item.sales12m) / observed;
 }
 
 function monthsToArrival(item) {
@@ -315,13 +376,13 @@ function coverageMonths(stock, monthly) {
 }
 
 function expectedStockAtArrival(item) {
-  const monthly = monthlySales(item.sales12m);
+  const monthly = monthlySales(item);
   const futureConsumption = monthly * monthsToArrival(item);
   return Math.max(0, toNumber(item.stock) + toNumber(item.inbound) - futureConsumption);
 }
 
 function requiredFromArrival(item) {
-  const monthly = monthlySales(item.sales12m);
+  const monthly = monthlySales(item);
   return monthly * (toNumber(item.targetMonths) + toNumber(item.safetyMonths));
 }
 
@@ -331,7 +392,7 @@ function orderQty(item) {
 }
 
 function getStatus(item) {
-  const monthly = monthlySales(item.sales12m);
+  const monthly = monthlySales(item);
   const currentCoverage = coverageMonths(item.stock + item.inbound, monthly);
 
   if (!item.active) {
@@ -347,7 +408,7 @@ function getStatus(item) {
 }
 
 function getWarning(item) {
-  const monthly = monthlySales(item.sales12m);
+  const monthly = monthlySales(item);
   const arrivalMonths = monthsToArrival(item);
   const coverageNow = coverageMonths(item.stock + item.inbound, monthly);
 
@@ -370,12 +431,11 @@ function groupItems(items) {
   return grouped;
 }
 
-function cardStat(title, value, sub) {
+function statCard(title, value) {
   return (
     <div style={styles.statCard}>
       <div style={styles.statTitle}>{title}</div>
       <div style={styles.statValue}>{value}</div>
-      {sub ? <div style={styles.statSub}>{sub}</div> : null}
     </div>
   );
 }
@@ -392,8 +452,7 @@ export default function Home() {
         item.id === id
           ? {
               ...item,
-              [field]:
-                field === "active" ? value : toNumber(value),
+              [field]: field === "active" ? value : toNumber(value),
             }
           : item
       )
@@ -406,7 +465,7 @@ export default function Home() {
 
   const computedItems = useMemo(() => {
     return items.map((item) => {
-      const monthly = monthlySales(item.sales12m);
+      const monthly = monthlySales(item);
       const currentCoverage = coverageMonths(item.stock + item.inbound, monthly);
       const expectedAtArrival = expectedStockAtArrival(item);
       const requiredArrival = requiredFromArrival(item);
@@ -440,10 +499,10 @@ export default function Home() {
 
   const dashboard = useMemo(() => {
     const critical = filteredItems.filter((i) => i.status.label === "Kritisch").length;
-    const warnings = filteredItems.filter((i) => i.warning).length;
     const orderTotal = filteredItems.reduce((sum, i) => sum + i.qty, 0);
     const activeSuppliers = new Set(filteredItems.map((i) => i.supplier)).size;
-    return { critical, warnings, orderTotal, activeSuppliers };
+    const warnings = filteredItems.filter((i) => i.warning).length;
+    return { critical, orderTotal, activeSuppliers, warnings };
   }, [filteredItems]);
 
   return (
@@ -453,16 +512,16 @@ export default function Home() {
           <div>
             <h1 style={styles.h1}>Einkaufs-Planungstool</h1>
             <p style={styles.lead}>
-              Live-Version mit Parent-/Child-Struktur, Warnungen und Bestelllogik ab Wareneingang.
+              Live-Version mit Dashboard, Warnungen und Bestelllogik ab Wareneingang.
             </p>
           </div>
         </div>
 
         <div style={styles.statsGrid}>
-          {cardStat("Artikelgruppen", Object.keys(grouped).length)}
-          {cardStat("Kritische Varianten", dashboard.critical)}
-          {cardStat("Bestellmenge gesamt", dashboard.orderTotal)}
-          {cardStat("Lieferanten aktiv", dashboard.activeSuppliers)}
+          {statCard("Artikelgruppen", Object.keys(grouped).length)}
+          {statCard("Kritische Varianten", dashboard.critical)}
+          {statCard("Bestellmenge gesamt", dashboard.orderTotal)}
+          {statCard("Lieferanten aktiv", dashboard.activeSuppliers)}
         </div>
 
         <div style={styles.filterCard}>
@@ -514,7 +573,7 @@ export default function Home() {
         <div style={styles.warningSection}>
           {filteredItems
             .filter((item) => item.warning)
-            .slice(0, 5)
+            .slice(0, 6)
             .map((item) => (
               <div key={`warn-${item.id}`} style={styles.warningCard}>
                 <strong>
@@ -527,9 +586,15 @@ export default function Home() {
 
         {Object.entries(grouped).map(([groupKey, groupItems]) => {
           const first = groupItems[0];
-          const totalStock = groupItems.reduce((sum, item) => sum + toNumber(item.stock) + toNumber(item.inbound), 0);
-          const totalSales12m = groupItems.reduce((sum, item) => sum + toNumber(item.sales12m), 0);
-          const totalMonthly = totalSales12m / 12;
+          const totalStock = groupItems.reduce(
+            (sum, item) => sum + toNumber(item.stock) + toNumber(item.inbound),
+            0
+          );
+          const totalSales12m = groupItems.reduce((sum, item) => {
+            const observed = getObservedMonths(item);
+            return sum + monthlySales(item) * observed;
+          }, 0);
+          const totalMonthly = groupItems.reduce((sum, item) => sum + item.monthly, 0);
           const totalCoverage = coverageMonths(totalStock, totalMonthly);
           const totalOrder = groupItems.reduce((sum, item) => sum + item.qty, 0);
 
@@ -565,7 +630,7 @@ export default function Home() {
 
               <div style={styles.groupInfo}>
                 <strong>Gesamtbestand:</strong> {totalStock} |{" "}
-                <strong>Verkäufe 12M:</strong> {totalSales12m} |{" "}
+                <strong>Verkäufe 12M:</strong> {Math.round(totalSales12m)} |{" "}
                 <strong>Monat:</strong> {totalMonthly.toFixed(1)} |{" "}
                 <strong>Reichweite:</strong> {totalCoverage.toFixed(1)} Monate |{" "}
                 <strong>Bestellmenge:</strong> {totalOrder}
@@ -579,7 +644,8 @@ export default function Home() {
                       <th style={styles.th}>Variante</th>
                       <th style={styles.th}>Bestand</th>
                       <th style={styles.th}>Unterwegs</th>
-                      <th style={styles.th}>Verkäufe 12M</th>
+                      <th style={styles.th}>Verkäufe</th>
+                      <th style={styles.th}>Monate beobachtet</th>
                       <th style={styles.th}>Monat</th>
                       <th style={styles.th}>Ziel</th>
                       <th style={styles.th}>Sicherheit</th>
@@ -616,6 +682,16 @@ export default function Home() {
                             type="number"
                             value={item.sales12m}
                             onChange={(e) => updateItem(item.id, "sales12m", e.target.value)}
+                            style={styles.input}
+                          />
+                        </td>
+                        <td style={styles.td}>
+                          <input
+                            type="number"
+                            value={getObservedMonths(item)}
+                            onChange={(e) =>
+                              updateItem(item.id, "observedMonths", e.target.value)
+                            }
                             style={styles.input}
                           />
                         </td>
@@ -734,11 +810,6 @@ const styles = {
     fontSize: "28px",
     fontWeight: 700,
   },
-  statSub: {
-    marginTop: "6px",
-    color: "#6b7280",
-    fontSize: "13px",
-  },
   filterCard: {
     background: "#ffffff",
     border: "1px solid #e5e7eb",
@@ -843,7 +914,7 @@ const styles = {
     width: "100%",
     borderCollapse: "collapse",
     background: "#fff",
-    minWidth: "1200px",
+    minWidth: "1400px",
   },
   theadRow: {
     background: "#f3f4f6",
