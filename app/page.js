@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 const data = [
   {
+    supplier: "Jeremy",
     parent: "Anti Schling Napf Silikon",
     variant: "blaugrau",
     articleNumber: "04001604",
@@ -12,6 +13,7 @@ const data = [
     monthsObserved: 12,
   },
   {
+    supplier: "Jeremy",
     parent: "Anti Schling Napf Silikon",
     variant: "malve",
     articleNumber: "04001605",
@@ -20,6 +22,7 @@ const data = [
     monthsObserved: 12,
   },
   {
+    supplier: "Jeremy",
     parent: "Anti Schling Napf Silikon",
     variant: "salbeigrün",
     articleNumber: "04001606",
@@ -28,6 +31,7 @@ const data = [
     monthsObserved: 12,
   },
   {
+    supplier: "Jeremy",
     parent: "Anti Schling Napf Silikon",
     variant: "taupe",
     articleNumber: "04001872",
@@ -36,6 +40,7 @@ const data = [
     monthsObserved: 12,
   },
   {
+    supplier: "Jeremy",
     parent: "Anti Schling Napf Silikon",
     variant: "steingrau",
     articleNumber: "04001873",
@@ -44,6 +49,7 @@ const data = [
     monthsObserved: 12,
   },
   {
+    supplier: "Jeremy",
     parent: "Anti Schling Napf Silikon",
     variant: "cool lilac",
     articleNumber: "04001929",
@@ -52,6 +58,7 @@ const data = [
     monthsObserved: 1,
   },
   {
+    supplier: "Jeremy",
     parent: "Anti Schling Napf Silikon",
     variant: "steel blue",
     articleNumber: "04001930",
@@ -60,6 +67,7 @@ const data = [
     monthsObserved: 1,
   },
   {
+    supplier: "Jeremy",
     parent: "Anti Schling Napf Silikon",
     variant: "ruby",
     articleNumber: "04001931",
@@ -68,6 +76,7 @@ const data = [
     monthsObserved: 1,
   },
   {
+    supplier: "Jeremy",
     parent: "Anti Schling Napf Silikon",
     variant: "graphite grey",
     articleNumber: "04001932",
@@ -77,6 +86,7 @@ const data = [
   },
 
   {
+    supplier: "Jeremy",
     parent: "Napfunterlage Silikon",
     variant: "stone grey",
     articleNumber: "04001553",
@@ -85,6 +95,7 @@ const data = [
     monthsObserved: 12,
   },
   {
+    supplier: "Jeremy",
     parent: "Napfunterlage Silikon",
     variant: "rose",
     articleNumber: "04001555",
@@ -93,6 +104,7 @@ const data = [
     monthsObserved: 12,
   },
   {
+    supplier: "Jeremy",
     parent: "Napfunterlage Silikon",
     variant: "steel blue",
     articleNumber: "04001556",
@@ -101,6 +113,7 @@ const data = [
     monthsObserved: 12,
   },
   {
+    supplier: "Jeremy",
     parent: "Napfunterlage Silikon",
     variant: "anthrazit",
     articleNumber: "04001563",
@@ -109,6 +122,7 @@ const data = [
     monthsObserved: 12,
   },
   {
+    supplier: "Jeremy",
     parent: "Napfunterlage Silikon",
     variant: "salbeigrün",
     articleNumber: "04001564",
@@ -117,6 +131,7 @@ const data = [
     monthsObserved: 12,
   },
   {
+    supplier: "Jeremy",
     parent: "Napfunterlage Silikon",
     variant: "lilac",
     articleNumber: "04001884",
@@ -186,11 +201,13 @@ const inputStyle = {
   border: "1px solid #cbd5e1",
   borderRadius: 8,
   fontSize: 14,
+  minWidth: 180,
 };
 
 export default function Home() {
   const [orderDate, setOrderDate] = useState("2026-06-01");
   const [targetMonths, setTargetMonths] = useState(3);
+  const [supplierFilter, setSupplierFilter] = useState("Alle");
 
   const today = useMemo(() => new Date("2026-03-18"), []);
   const orderDateObj = useMemo(() => new Date(orderDate), [orderDate]);
@@ -201,7 +218,40 @@ export default function Home() {
     return Math.max(0, diffDays / 30.44);
   }, [orderDateObj, today]);
 
-  const grouped = groupData(data);
+  const suppliers = ["Alle", ...new Set(data.map((item) => item.supplier))];
+
+  const filteredData = useMemo(() => {
+    if (supplierFilter === "Alle") return data;
+    return data.filter((item) => item.supplier === supplierFilter);
+  }, [supplierFilter]);
+
+  const grouped = groupData(filteredData);
+
+  const overallMonthlySales = filteredData.reduce(
+    (sum, item) => sum + getMonthlySales(item.sales, item.monthsObserved),
+    0
+  );
+  const overallStock = filteredData.reduce((sum, item) => sum + item.stock, 0);
+  const overallProjectedAtOrder = filteredData.reduce((sum, item) => {
+    const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
+    const projectedSalesUntilOrder = monthlySales * monthsUntilOrder;
+    const projectedStockAtOrder = Math.max(0, item.stock - projectedSalesUntilOrder);
+    return sum + projectedStockAtOrder;
+  }, 0);
+
+  const overallTargetStock = filteredData.reduce((sum, item) => {
+    const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
+    return sum + monthlySales * targetMonths;
+  }, 0);
+
+  const overallRecommendation = filteredData.reduce((sum, item) => {
+    const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
+    const projectedSalesUntilOrder = monthlySales * monthsUntilOrder;
+    const projectedStockAtOrder = Math.max(0, item.stock - projectedSalesUntilOrder);
+    const targetStock = monthlySales * targetMonths;
+    const recommendedOrderQty = Math.max(0, targetStock - projectedStockAtOrder);
+    return sum + recommendedOrderQty;
+  }, 0);
 
   return (
     <main
@@ -214,7 +264,7 @@ export default function Home() {
     >
       <h1 style={{ marginBottom: 8 }}>Einkaufs-Tool</h1>
       <p style={{ marginBottom: 24, color: "#475569" }}>
-        Bestell-Logik Grundversion: Bedarf ab Bestellstart.
+        Lieferanten-Filter und Bestelllogik pro Auswahl.
       </p>
 
       <div
@@ -230,6 +280,21 @@ export default function Home() {
           marginBottom: 24,
         }}
       >
+        <div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Lieferant</div>
+          <select
+            value={supplierFilter}
+            onChange={(e) => setSupplierFilter(e.target.value)}
+            style={inputStyle}
+          >
+            {suppliers.map((supplier) => (
+              <option key={supplier} value={supplier}>
+                {supplier}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div>
           <div style={{ marginBottom: 6, fontWeight: 700 }}>Bestellstart</div>
           <input
@@ -260,6 +325,26 @@ export default function Home() {
         </div>
       </div>
 
+      <div
+        style={{
+          display: "flex",
+          gap: 20,
+          flexWrap: "wrap",
+          background: "white",
+          border: "1px solid #e5e7eb",
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 24,
+        }}
+      >
+        <div><strong>Auswahl:</strong> {supplierFilter}</div>
+        <div><strong>Gesamtbestand:</strong> {overallStock.toFixed(0)}</div>
+        <div><strong>Monatsverkauf:</strong> {overallMonthlySales.toFixed(1)}</div>
+        <div><strong>Rest bei Bestellstart:</strong> {overallProjectedAtOrder.toFixed(0)}</div>
+        <div><strong>Zielbestand:</strong> {overallTargetStock.toFixed(0)}</div>
+        <div><strong>Bestellvorschlag:</strong> {overallRecommendation.toFixed(0)}</div>
+      </div>
+
       {Object.entries(grouped).map(([parent, items]) => {
         const enrichedItems = items.map((item) => {
           const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
@@ -267,9 +352,10 @@ export default function Home() {
           const projectedStockAtOrder = Math.max(0, item.stock - projectedSalesUntilOrder);
           const targetStock = monthlySales * targetMonths;
           const recommendedOrderQty = Math.max(0, targetStock - projectedStockAtOrder);
-          const share = items.reduce((sum, row) => sum + row.sales, 0) > 0
-            ? (item.sales / items.reduce((sum, row) => sum + row.sales, 0)) * 100
-            : 0;
+          const share =
+            items.reduce((sum, row) => sum + row.sales, 0) > 0
+              ? (item.sales / items.reduce((sum, row) => sum + row.sales, 0)) * 100
+              : 0;
           const coverage = getCoverageMonths(item.stock, monthlySales);
           const status = getStatus(item.stock, monthlySales);
 
@@ -290,15 +376,11 @@ export default function Home() {
         const totalSales = enrichedItems.reduce((sum, item) => sum + item.sales, 0);
         const totalMonthlySales = enrichedItems.reduce((sum, item) => sum + item.monthlySales, 0);
         const parentCoverage = getCoverageMonths(totalStock, totalMonthlySales);
-
         const parentProjectedStockAtOrder = enrichedItems.reduce(
           (sum, item) => sum + item.projectedStockAtOrder,
           0
         );
-        const parentTargetStock = enrichedItems.reduce(
-          (sum, item) => sum + item.targetStock,
-          0
-        );
+        const parentTargetStock = enrichedItems.reduce((sum, item) => sum + item.targetStock, 0);
         const parentRecommendedOrderQty = enrichedItems.reduce(
           (sum, item) => sum + item.recommendedOrderQty,
           0
@@ -337,6 +419,7 @@ export default function Home() {
                 marginBottom: 16,
               }}
             >
+              <div><strong>Lieferant:</strong> {items[0].supplier}</div>
               <div><strong>Gesamtbestand:</strong> {totalStock.toFixed(0)}</div>
               <div><strong>Verkäufe:</strong> {totalSales.toFixed(0)}</div>
               <div><strong>Monatsverkauf:</strong> {totalMonthlySales.toFixed(1)}</div>
@@ -352,6 +435,7 @@ export default function Home() {
                 <tr>
                   <th style={th}>Artikelnummer</th>
                   <th style={th}>Variante</th>
+                  <th style={th}>Lieferant</th>
                   <th style={th}>Bestand</th>
                   <th style={th}>Verkäufe</th>
                   <th style={th}>Monate beobachtet</th>
@@ -370,6 +454,7 @@ export default function Home() {
                   <tr key={item.articleNumber}>
                     <td style={td}>{item.articleNumber}</td>
                     <td style={td}>{item.variant}</td>
+                    <td style={td}>{item.supplier}</td>
                     <td style={td}>{item.stock}</td>
                     <td style={td}>{item.sales}</td>
                     <td style={td}>{item.monthsObserved}</td>
