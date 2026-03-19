@@ -376,8 +376,8 @@ export default function Home() {
               ? (item.monthlySales / totalMonthlySales) * 100
               : 0;
 
-          const distributedOrderQty = (parentRecommendedOrderQty * share) / 100;
-
+        const distributedOrderQty = Math.max(0, item.targetStock - item.projectedStockAtOrder);
+          
           return {
             ...item,
             share,
