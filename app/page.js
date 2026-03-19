@@ -5,6 +5,8 @@ import { useState } from "react";
 const data = [
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Anti Schling Napf Silikon",
     variant: "blaugrau",
     articleNumber: "04001604",
@@ -14,6 +16,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Anti Schling Napf Silikon",
     variant: "malve",
     articleNumber: "04001605",
@@ -23,6 +27,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Anti Schling Napf Silikon",
     variant: "salbeigrün",
     articleNumber: "04001606",
@@ -32,6 +38,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Anti Schling Napf Silikon",
     variant: "taupe",
     articleNumber: "04001872",
@@ -41,6 +49,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Anti Schling Napf Silikon",
     variant: "steingrau",
     articleNumber: "04001873",
@@ -50,6 +60,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Anti Schling Napf Silikon",
     variant: "cool lilac",
     articleNumber: "04001929",
@@ -59,6 +71,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Anti Schling Napf Silikon",
     variant: "steel blue",
     articleNumber: "04001930",
@@ -68,6 +82,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Anti Schling Napf Silikon",
     variant: "ruby",
     articleNumber: "04001931",
@@ -77,6 +93,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Anti Schling Napf Silikon",
     variant: "graphite grey",
     articleNumber: "04001932",
@@ -87,6 +105,8 @@ const data = [
 
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Napfunterlage Silikon",
     variant: "stone grey",
     articleNumber: "04001553",
@@ -96,6 +116,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Napfunterlage Silikon",
     variant: "rose",
     articleNumber: "04001555",
@@ -105,6 +127,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Napfunterlage Silikon",
     variant: "steel blue",
     articleNumber: "04001556",
@@ -114,6 +138,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Napfunterlage Silikon",
     variant: "anthrazit",
     articleNumber: "04001563",
@@ -123,6 +149,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Napfunterlage Silikon",
     variant: "salbeigrün",
     articleNumber: "04001564",
@@ -132,6 +160,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
+    hasFixedOrderDate: true,
+    fixedOrderDate: "2026-06-01",
     parent: "Napfunterlage Silikon",
     variant: "lilac",
     articleNumber: "04001884",
@@ -238,27 +268,6 @@ export default function Home() {
 
   const grouped = groupData(filteredData);
 
-  const overallMonthlySales = filteredData.reduce(
-    (sum, item) => sum + getMonthlySales(item.sales, item.monthsObserved),
-    0
-  );
-
-  const overallStock = filteredData.reduce((sum, item) => sum + item.stock, 0);
-
-  const overallProjectedAtArrival = filteredData.reduce((sum, item) => {
-    const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
-    const projectedSalesUntilArrival = monthlySales * monthsToArrival;
-    const projectedStockAtArrival = Math.max(0, item.stock - projectedSalesUntilArrival);
-    return sum + projectedStockAtArrival;
-  }, 0);
-
-  const overallTargetStock = filteredData.reduce((sum, item) => {
-    const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
-    return sum + monthlySales * (targetMonths + safetyMonths);
-  }, 0);
-
-  const overallRecommendation = Math.max(0, overallTargetStock - overallProjectedAtArrival);
-
   return (
     <main
       style={{
@@ -270,7 +279,7 @@ export default function Home() {
     >
       <h1 style={{ marginBottom: 8 }}>Einkaufs-Tool</h1>
       <p style={{ marginBottom: 24, color: "#475569" }}>
-        Bestelllogik ab Wareneingang mit Produktionszeit, Lieferzeit und Sicherheitsbestand.
+        Datenmodell mit fixem Bestelltermin pro Artikel vorbereitet.
       </p>
 
       <div
@@ -360,13 +369,6 @@ export default function Home() {
         </div>
 
         <div>
-          <div style={{ marginBottom: 6, fontWeight: 700 }}>Monate bis Bestellstart</div>
-          <div style={{ ...inputStyle, background: "#f8fafc" }}>
-            {monthsUntilOrder.toFixed(1)}
-          </div>
-        </div>
-
-        <div>
           <div style={{ marginBottom: 6, fontWeight: 700 }}>Monate bis Wareneingang</div>
           <div style={{ ...inputStyle, background: "#f8fafc" }}>
             {monthsToArrival.toFixed(1)}
@@ -374,40 +376,18 @@ export default function Home() {
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 20,
-          flexWrap: "wrap",
-          background: "white",
-          border: "1px solid #e5e7eb",
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 24,
-        }}
-      >
-        <div><strong>Auswahl:</strong> {supplierFilter}</div>
-        <div><strong>Gesamtbestand:</strong> {overallStock.toFixed(0)}</div>
-        <div><strong>Monatsverkauf:</strong> {overallMonthlySales.toFixed(1)}</div>
-        <div><strong>Rest bei Wareneingang:</strong> {overallProjectedAtArrival.toFixed(0)}</div>
-        <div><strong>Zielbestand:</strong> {overallTargetStock.toFixed(0)}</div>
-        <div><strong>Bestellvorschlag:</strong> {overallRecommendation.toFixed(0)}</div>
-      </div>
-
       {Object.entries(grouped).map(([parent, items]) => {
-        const baseItems = items.map((item) => {
+        const enrichedItems = items.map((item) => {
           const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
           const projectedSalesUntilArrival = monthlySales * monthsToArrival;
           const projectedStockAtArrival = Math.max(0, item.stock - projectedSalesUntilArrival);
           const targetStock = monthlySales * (targetMonths + safetyMonths);
           const coverage = getCoverageMonths(item.stock, monthlySales);
-
           const status = getStatus({
             coverage,
             projectedStockAtArrival,
             monthlySales,
           });
-
           const recommendedOrderQty = Math.max(0, targetStock - projectedStockAtArrival);
 
           return {
@@ -421,41 +401,6 @@ export default function Home() {
             recommendedOrderQty,
           };
         });
-
-        const totalStock = baseItems.reduce((sum, item) => sum + item.stock, 0);
-        const totalSales = baseItems.reduce((sum, item) => sum + item.sales, 0);
-        const totalMonthlySales = baseItems.reduce((sum, item) => sum + item.monthlySales, 0);
-        const parentCoverage = getCoverageMonths(totalStock, totalMonthlySales);
-        const parentProjectedStockAtArrival = baseItems.reduce(
-          (sum, item) => sum + item.projectedStockAtArrival,
-          0
-        );
-        const parentTargetStock = baseItems.reduce((sum, item) => sum + item.targetStock, 0);
-        const parentRecommendedOrderQty = baseItems.reduce(
-          (sum, item) => sum + item.recommendedOrderQty,
-          0
-        );
-
-        const enrichedItems = baseItems.map((item) => {
-          const share =
-            totalMonthlySales > 0
-              ? (item.monthlySales / totalMonthlySales) * 100
-              : 0;
-
-          return {
-            ...item,
-            share,
-          };
-        });
-
-        const parentStatus =
-          enrichedItems.some((item) => item.projectedStockAtArrival <= 0)
-            ? { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" }
-            : enrichedItems.some((item) => item.projectedStockAtArrival < item.monthlySales * 2)
-            ? { label: "Warnung", bg: "#ffedd5", color: "#c2410c" }
-            : enrichedItems.some((item) => item.status.label === "Achtung")
-            ? { label: "Achtung", bg: "#fef3c7", color: "#b45309" }
-            : { label: "OK", bg: "#dcfce7", color: "#166534" };
 
         return (
           <details
@@ -474,41 +419,18 @@ export default function Home() {
               {parent}
             </summary>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 20,
-                flexWrap: "wrap",
-                marginTop: 14,
-                marginBottom: 16,
-              }}
-            >
-              <div><strong>Lieferant:</strong> {items[0].supplier}</div>
-              <div><strong>Gesamtbestand:</strong> {totalStock.toFixed(0)}</div>
-              <div><strong>Verkäufe:</strong> {totalSales.toFixed(0)}</div>
-              <div><strong>Monatsverkauf:</strong> {totalMonthlySales.toFixed(1)}</div>
-              <div><strong>Reichweite:</strong> {parentCoverage.toFixed(1)} Monate</div>
-              <div><strong>Rest bei Wareneingang:</strong> {parentProjectedStockAtArrival.toFixed(0)}</div>
-              <div><strong>Zielbestand:</strong> {parentTargetStock.toFixed(0)}</div>
-              <div><strong>Bestellvorschlag:</strong> {parentRecommendedOrderQty.toFixed(0)}</div>
-              <div><span style={badgeStyle(parentStatus)}>{parentStatus.label}</span></div>
-            </div>
-
-            <table style={{ width: "100%", borderCollapse: "collapse", background: "white" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", background: "white", marginTop: 16 }}>
               <thead>
                 <tr>
                   <th style={th}>Artikelnummer</th>
                   <th style={th}>Variante</th>
                   <th style={th}>Lieferant</th>
+                  <th style={th}>Fixer Termin</th>
+                  <th style={th}>Termin</th>
                   <th style={th}>Bestand</th>
                   <th style={th}>Verkäufe</th>
-                  <th style={th}>Monate beobachtet</th>
                   <th style={th}>Monat</th>
-                  <th style={th}>Anteil am Parent</th>
-                  <th style={th}>Reichweite</th>
-                  <th style={th}>Verbrauch bis Wareneingang</th>
                   <th style={th}>Rest bei Wareneingang</th>
-                  <th style={th}>Zielbestand</th>
                   <th style={th}>Bestellvorschlag</th>
                   <th style={th}>Status</th>
                 </tr>
@@ -519,15 +441,12 @@ export default function Home() {
                     <td style={td}>{item.articleNumber}</td>
                     <td style={td}>{item.variant}</td>
                     <td style={td}>{item.supplier}</td>
+                    <td style={td}>{item.hasFixedOrderDate ? "Ja" : "Nein"}</td>
+                    <td style={td}>{item.fixedOrderDate || "-"}</td>
                     <td style={td}>{item.stock}</td>
                     <td style={td}>{item.sales}</td>
-                    <td style={td}>{item.monthsObserved}</td>
                     <td style={td}>{item.monthlySales.toFixed(1)}</td>
-                    <td style={td}>{item.share.toFixed(1)}%</td>
-                    <td style={td}>{item.coverage.toFixed(1)} Monate</td>
-                    <td style={td}>{item.projectedSalesUntilArrival.toFixed(1)}</td>
                     <td style={td}>{item.projectedStockAtArrival.toFixed(1)}</td>
-                    <td style={td}>{item.targetStock.toFixed(1)}</td>
                     <td style={td}>{item.recommendedOrderQty.toFixed(1)}</td>
                     <td style={td}>
                       <span style={badgeStyle(item.status)}>{item.status.label}</span>
