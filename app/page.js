@@ -105,8 +105,8 @@ const data = [
 
   {
     supplier: "Jeremy",
-    hasFixedOrderDate: true,
-    fixedOrderDate: "2026-06-01",
+    hasFixedOrderDate: false,
+    fixedOrderDate: "",
     parent: "Napfunterlage Silikon",
     variant: "stone grey",
     articleNumber: "04001553",
@@ -116,8 +116,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
-    hasFixedOrderDate: true,
-    fixedOrderDate: "2026-06-01",
+    hasFixedOrderDate: false,
+    fixedOrderDate: "",
     parent: "Napfunterlage Silikon",
     variant: "rose",
     articleNumber: "04001555",
@@ -127,8 +127,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
-    hasFixedOrderDate: true,
-    fixedOrderDate: "2026-06-01",
+    hasFixedOrderDate: false,
+    fixedOrderDate: "",
     parent: "Napfunterlage Silikon",
     variant: "steel blue",
     articleNumber: "04001556",
@@ -138,8 +138,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
-    hasFixedOrderDate: true,
-    fixedOrderDate: "2026-06-01",
+    hasFixedOrderDate: false,
+    fixedOrderDate: "",
     parent: "Napfunterlage Silikon",
     variant: "anthrazit",
     articleNumber: "04001563",
@@ -149,8 +149,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
-    hasFixedOrderDate: true,
-    fixedOrderDate: "2026-06-01",
+    hasFixedOrderDate: false,
+    fixedOrderDate: "",
     parent: "Napfunterlage Silikon",
     variant: "salbeigrün",
     articleNumber: "04001564",
@@ -160,8 +160,8 @@ const data = [
   },
   {
     supplier: "Jeremy",
-    hasFixedOrderDate: true,
-    fixedOrderDate: "2026-06-01",
+    hasFixedOrderDate: false,
+    fixedOrderDate: "",
     parent: "Napfunterlage Silikon",
     variant: "lilac",
     articleNumber: "04001884",
@@ -181,16 +181,20 @@ function getCoverageMonths(stock, monthlySales) {
 }
 
 function getStatus(item) {
-  if (item.projectedStockAtArrival <= 0) {
-    return { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" };
-  }
-
-  if (item.projectedStockAtArrival < item.monthlySales * 2) {
-    return { label: "Warnung", bg: "#ffedd5", color: "#c2410c" };
-  }
-
-  if (item.coverage < 1) {
-    return { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" };
+  if (item.hasFixedOrderDate) {
+    if (item.projectedStockAtArrival <= 0) {
+      return { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" };
+    }
+    if (item.projectedStockAtArrival < item.monthlySales * 2) {
+      return { label: "Warnung", bg: "#ffedd5", color: "#c2410c" };
+    }
+  } else {
+    if (item.coverage < 1) {
+      return { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" };
+    }
+    if (item.coverage < 3) {
+      return { label: "Warnung", bg: "#ffedd5", color: "#c2410c" };
+    }
   }
 
   if (item.coverage < 3) {
@@ -261,9 +265,10 @@ export default function Home() {
   const grouped = groupData(filteredData);
 
   const overallItems = filteredData.map((item) => {
-    const effectiveOrderDate = item.hasFixedOrderDate && item.fixedOrderDate
-      ? item.fixedOrderDate
-      : defaultOrderDate;
+    const effectiveOrderDate =
+      item.hasFixedOrderDate && item.fixedOrderDate
+        ? item.fixedOrderDate
+        : defaultOrderDate;
 
     const orderDateObj = new Date(effectiveOrderDate);
 
@@ -278,14 +283,8 @@ export default function Home() {
     const projectedStockAtArrival = Math.max(0, item.stock - projectedSalesUntilArrival);
     const targetStock = monthlySales * (targetMonths + safetyMonths);
     const coverage = getCoverageMonths(item.stock, monthlySales);
-    const status = getStatus({
-      monthlySales,
-      projectedStockAtArrival,
-      coverage,
-    });
-    const recommendedOrderQty = Math.max(0, targetStock - projectedStockAtArrival);
 
-    return {
+    const baseItem = {
       ...item,
       effectiveOrderDate,
       monthsUntilOrder,
@@ -295,22 +294,17 @@ export default function Home() {
       projectedStockAtArrival,
       targetStock,
       coverage,
+    };
+
+    const status = getStatus(baseItem);
+    const recommendedOrderQty = Math.max(0, targetStock - projectedStockAtArrival);
+
+    return {
+      ...baseItem,
       status,
       recommendedOrderQty,
     };
   });
-
-  const overallMonthlySales = overallItems.reduce((sum, item) => sum + item.monthlySales, 0);
-  const overallStock = overallItems.reduce((sum, item) => sum + item.stock, 0);
-  const overallProjectedAtArrival = overallItems.reduce(
-    (sum, item) => sum + item.projectedStockAtArrival,
-    0
-  );
-  const overallTargetStock = overallItems.reduce((sum, item) => sum + item.targetStock, 0);
-  const overallRecommendation = overallItems.reduce(
-    (sum, item) => sum + item.recommendedOrderQty,
-    0
-  );
 
   return (
     <main
@@ -323,7 +317,7 @@ export default function Home() {
     >
       <h1 style={{ marginBottom: 8 }}>Einkaufs-Tool</h1>
       <p style={{ marginBottom: 24, color: "#475569" }}>
-        Finale Wareneingang-Logik mit fixem Termin pro Artikel, Sicherheitsbestand, Produktions- und Lieferzeit.
+        Test für fixe Termine vs. freie Artikel.
       </p>
 
       <div
@@ -365,11 +359,10 @@ export default function Home() {
         </div>
 
         <div>
-          <div style={{ marginBottom: 6, fontWeight: 700 }}>Zielreichweite (Monate)</div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Zielreichweite</div>
           <input
             type="number"
             min="1"
-            step="1"
             value={targetMonths}
             onChange={(e) => setTargetMonths(Number(e.target.value))}
             style={inputStyle}
@@ -377,11 +370,10 @@ export default function Home() {
         </div>
 
         <div>
-          <div style={{ marginBottom: 6, fontWeight: 700 }}>Sicherheitsbestand (Monate)</div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Sicherheitsbestand</div>
           <input
             type="number"
             min="0"
-            step="1"
             value={safetyMonths}
             onChange={(e) => setSafetyMonths(Number(e.target.value))}
             style={inputStyle}
@@ -389,11 +381,10 @@ export default function Home() {
         </div>
 
         <div>
-          <div style={{ marginBottom: 6, fontWeight: 700 }}>Produktionszeit (Monate)</div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Produktion</div>
           <input
             type="number"
             min="0"
-            step="1"
             value={productionMonths}
             onChange={(e) => setProductionMonths(Number(e.target.value))}
             style={inputStyle}
@@ -401,11 +392,10 @@ export default function Home() {
         </div>
 
         <div>
-          <div style={{ marginBottom: 6, fontWeight: 700 }}>Lieferzeit (Monate)</div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Lieferzeit</div>
           <input
             type="number"
             min="0"
-            step="1"
             value={shippingMonths}
             onChange={(e) => setShippingMonths(Number(e.target.value))}
             style={inputStyle}
@@ -413,136 +403,56 @@ export default function Home() {
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 20,
-          flexWrap: "wrap",
-          background: "white",
-          border: "1px solid #e5e7eb",
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 24,
-        }}
-      >
-        <div><strong>Auswahl:</strong> {supplierFilter}</div>
-        <div><strong>Gesamtbestand:</strong> {overallStock.toFixed(0)}</div>
-        <div><strong>Monatsverkauf:</strong> {overallMonthlySales.toFixed(1)}</div>
-        <div><strong>Rest bei Wareneingang:</strong> {overallProjectedAtArrival.toFixed(0)}</div>
-        <div><strong>Zielbestand:</strong> {overallTargetStock.toFixed(0)}</div>
-        <div><strong>Bestellvorschlag:</strong> {overallRecommendation.toFixed(0)}</div>
-      </div>
+      {Object.entries(groupData(overallItems)).map(([parent, items]) => (
+        <details
+          key={parent}
+          open
+          style={{
+            marginBottom: 24,
+            background: "white",
+            border: "1px solid #e5e7eb",
+            borderRadius: 12,
+            padding: 16,
+          }}
+        >
+          <summary style={{ cursor: "pointer", fontSize: 20, fontWeight: 700 }}>
+            {parent}
+          </summary>
 
-      {Object.entries(grouped).map(([parent, items]) => {
-        const enrichedItems = items.map((item) =>
-          overallItems.find((x) => x.articleNumber === item.articleNumber)
-        );
-
-        const totalStock = enrichedItems.reduce((sum, item) => sum + item.stock, 0);
-        const totalSales = enrichedItems.reduce((sum, item) => sum + item.sales, 0);
-        const totalMonthlySales = enrichedItems.reduce((sum, item) => sum + item.monthlySales, 0);
-        const parentCoverage = getCoverageMonths(totalStock, totalMonthlySales);
-        const parentProjectedStockAtArrival = enrichedItems.reduce(
-          (sum, item) => sum + item.projectedStockAtArrival,
-          0
-        );
-        const parentTargetStock = enrichedItems.reduce((sum, item) => sum + item.targetStock, 0);
-        const parentRecommendedOrderQty = enrichedItems.reduce(
-          (sum, item) => sum + item.recommendedOrderQty,
-          0
-        );
-
-        const parentStatus =
-          enrichedItems.some((item) => item.projectedStockAtArrival <= 0)
-            ? { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" }
-            : enrichedItems.some((item) => item.projectedStockAtArrival < item.monthlySales * 2)
-            ? { label: "Warnung", bg: "#ffedd5", color: "#c2410c" }
-            : enrichedItems.some((item) => item.coverage < 3)
-            ? { label: "Achtung", bg: "#fef3c7", color: "#b45309" }
-            : { label: "OK", bg: "#dcfce7", color: "#166534" };
-
-        return (
-          <details
-            key={parent}
-            open
-            style={{
-              marginBottom: 24,
-              background: "white",
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: 16,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-            }}
-          >
-            <summary style={{ cursor: "pointer", fontSize: 20, fontWeight: 700 }}>
-              {parent}
-            </summary>
-
-            <div
-              style={{
-                display: "flex",
-                gap: 20,
-                flexWrap: "wrap",
-                marginTop: 14,
-                marginBottom: 16,
-              }}
-            >
-              <div><strong>Lieferant:</strong> {items[0].supplier}</div>
-              <div><strong>Gesamtbestand:</strong> {totalStock.toFixed(0)}</div>
-              <div><strong>Verkäufe:</strong> {totalSales.toFixed(0)}</div>
-              <div><strong>Monatsverkauf:</strong> {totalMonthlySales.toFixed(1)}</div>
-              <div><strong>Reichweite:</strong> {parentCoverage.toFixed(1)} Monate</div>
-              <div><strong>Rest bei Wareneingang:</strong> {parentProjectedStockAtArrival.toFixed(0)}</div>
-              <div><strong>Zielbestand:</strong> {parentTargetStock.toFixed(0)}</div>
-              <div><strong>Bestellvorschlag:</strong> {parentRecommendedOrderQty.toFixed(0)}</div>
-              <div><span style={badgeStyle(parentStatus)}>{parentStatus.label}</span></div>
-            </div>
-
-            <table style={{ width: "100%", borderCollapse: "collapse", background: "white" }}>
-              <thead>
-                <tr>
-                  <th style={th}>Artikelnummer</th>
-                  <th style={th}>Variante</th>
-                  <th style={th}>Lieferant</th>
-                  <th style={th}>Fixer Termin</th>
-                  <th style={th}>Termin</th>
-                  <th style={th}>Bestand</th>
-                  <th style={th}>Verkäufe</th>
-                  <th style={th}>Monate beobachtet</th>
-                  <th style={th}>Monat</th>
-                  <th style={th}>Monate bis Wareneingang</th>
-                  <th style={th}>Rest bei Wareneingang</th>
-                  <th style={th}>Zielbestand</th>
-                  <th style={th}>Bestellvorschlag</th>
-                  <th style={th}>Status</th>
+          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 16 }}>
+            <thead>
+              <tr>
+                <th style={th}>Artikelnummer</th>
+                <th style={th}>Variante</th>
+                <th style={th}>Fixer Termin</th>
+                <th style={th}>Termin</th>
+                <th style={th}>Monat</th>
+                <th style={th}>Reichweite</th>
+                <th style={th}>Rest bei Wareneingang</th>
+                <th style={th}>Bestellvorschlag</th>
+                <th style={th}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.articleNumber}>
+                  <td style={td}>{item.articleNumber}</td>
+                  <td style={td}>{item.variant}</td>
+                  <td style={td}>{item.hasFixedOrderDate ? "Ja" : "Nein"}</td>
+                  <td style={td}>{item.effectiveOrderDate}</td>
+                  <td style={td}>{item.monthlySales.toFixed(1)}</td>
+                  <td style={td}>{item.coverage.toFixed(1)} Monate</td>
+                  <td style={td}>{item.projectedStockAtArrival.toFixed(1)}</td>
+                  <td style={td}>{item.recommendedOrderQty.toFixed(1)}</td>
+                  <td style={td}>
+                    <span style={badgeStyle(item.status)}>{item.status.label}</span>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {enrichedItems.map((item) => (
-                  <tr key={item.articleNumber}>
-                    <td style={td}>{item.articleNumber}</td>
-                    <td style={td}>{item.variant}</td>
-                    <td style={td}>{item.supplier}</td>
-                    <td style={td}>{item.hasFixedOrderDate ? "Ja" : "Nein"}</td>
-                    <td style={td}>{item.effectiveOrderDate}</td>
-                    <td style={td}>{item.stock}</td>
-                    <td style={td}>{item.sales}</td>
-                    <td style={td}>{item.monthsObserved}</td>
-                    <td style={td}>{item.monthlySales.toFixed(1)}</td>
-                    <td style={td}>{item.monthsToArrival.toFixed(1)}</td>
-                    <td style={td}>{item.projectedStockAtArrival.toFixed(1)}</td>
-                    <td style={td}>{item.targetStock.toFixed(1)}</td>
-                    <td style={td}>{item.recommendedOrderQty.toFixed(1)}</td>
-                    <td style={td}>
-                      <span style={badgeStyle(item.status)}>{item.status.label}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </details>
-        );
-      })}
+              ))}
+            </tbody>
+          </table>
+        </details>
+      ))}
     </main>
   );
 }
