@@ -150,13 +150,19 @@ function getCoverageMonths(stock, monthlySales) {
   return stock / monthlySales;
 }
 
-function getStatusByCoverage(coverage) {
-  if (coverage < 1) {
+function getStatus(item) {
+  if (item.projectedStockAtArrival <= 0) {
     return { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" };
   }
-  if (coverage < 3) {
+
+  if (item.coverage < 1) {
+    return { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" };
+  }
+
+  if (item.coverage < 3) {
     return { label: "Achtung", bg: "#fef3c7", color: "#b45309" };
   }
+
   return { label: "OK", bg: "#dcfce7", color: "#166534" };
 }
 
@@ -391,7 +397,12 @@ export default function Home() {
           const projectedStockAtArrival = Math.max(0, item.stock - projectedSalesUntilArrival);
           const targetStock = monthlySales * (targetMonths + safetyMonths);
           const coverage = getCoverageMonths(item.stock, monthlySales);
-          const status = getStatusByCoverage(coverage);
+
+          const status = getStatus({
+            coverage,
+            projectedStockAtArrival,
+          });
+
           const recommendedOrderQty = Math.max(0, targetStock - projectedStockAtArrival);
 
           return {
@@ -433,7 +444,9 @@ export default function Home() {
         });
 
         const parentStatus =
-          enrichedItems.some((item) => item.status.label === "Kritisch")
+          enrichedItems.some((item) => item.projectedStockAtArrival <= 0)
+            ? { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" }
+            : enrichedItems.some((item) => item.status.label === "Kritisch")
             ? { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" }
             : enrichedItems.some((item) => item.status.label === "Achtung")
             ? { label: "Achtung", bg: "#fef3c7", color: "#b45309" }
