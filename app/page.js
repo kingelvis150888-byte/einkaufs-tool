@@ -376,12 +376,12 @@ export default function Home() {
               ? (item.monthlySales / totalMonthlySales) * 100
               : 0;
 
-        const distributedOrderQty = Math.max(0, item.targetStock - item.projectedStockAtOrder);
+        const recommendedOrderQty = Math.max(0, item.targetStock - item.projectedStockAtOrder);
           
           return {
             ...item,
             share,
-            distributedOrderQty,
+            recommendedOrderQty,
           };
         });
 
@@ -463,7 +463,7 @@ export default function Home() {
                     <td style={td}>{item.projectedSalesUntilOrder.toFixed(1)}</td>
                     <td style={td}>{item.projectedStockAtOrder.toFixed(1)}</td>
                     <td style={td}>{item.targetStock.toFixed(1)}</td>
-                    <td style={td}>{item.distributedOrderQty.toFixed(1)}</td>
+                    <td style={td}>{item.recommendedOrderQty.toFixed(1)}</td>
                     <td style={td}>
                       <span style={badgeStyle(item.status)}>{item.status.label}</span>
                     </td>
