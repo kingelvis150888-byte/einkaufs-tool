@@ -403,6 +403,34 @@ export default function Home() {
         </div>
       </div>
 
+      <div
+        style={{
+          background: "white",
+          border: "1px solid #e5e7eb",
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 24,
+        }}
+      >
+        <h3 style={{ marginBottom: 12 }}>Daten hochladen</h3>
+
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ marginBottom: 6, fontWeight: 700 }}>
+              Bestandsbericht (ERP)
+            </div>
+            <input type="file" />
+          </div>
+
+          <div>
+            <div style={{ marginBottom: 6, fontWeight: 700 }}>
+              Verkaufsbericht (Sellerboard)
+            </div>
+            <input type="file" />
+          </div>
+        </div>
+      </div>
+
       {Object.entries(groupData(overallItems)).map(([parent, items]) => (
         <details
           key={parent}
