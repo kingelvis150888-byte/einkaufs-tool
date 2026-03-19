@@ -249,7 +249,7 @@ export default function Home() {
     const projectedSalesUntilOrder = monthlySales * monthsUntilOrder;
     const projectedStockAtOrder = Math.max(0, item.stock - projectedSalesUntilOrder);
     const targetStock = monthlySales * targetMonths;
-    const recommendedOrderQty = Math.max(0, targetStock - projectedStockAtOrder);
+    const recommendedOrderQty = 0;
     return sum + recommendedOrderQty;
   }, 0);
 
@@ -358,6 +358,7 @@ export default function Home() {
 );
 
 const share =
+  const distributedOrderQty = 0;
   totalMonthly > 0
     ? (monthlySales / totalMonthly) * 100
     : 0;
@@ -386,9 +387,9 @@ const share =
           0
         );
         const parentTargetStock = enrichedItems.reduce((sum, item) => sum + item.targetStock, 0);
-        const parentRecommendedOrderQty = enrichedItems.reduce(
-          (sum, item) => sum + item.recommendedOrderQty,
-          0
+        const parentRecommendedOrderQty = Math.max(
+          0,
+          parentTargetStock - parentProjectedStockAtOrder
         );
 
         const parentStatus =
@@ -451,6 +452,7 @@ const share =
                   <th style={th}>Rest bei Bestellstart</th>
                   <th style={th}>Zielbestand</th>
                   <th style={th}>Bestellvorschlag</th>
+                  <th style={th}>Verteilung</th>
                   <th style={th}>Status</th>
                 </tr>
               </thead>
@@ -470,6 +472,9 @@ const share =
                     <td style={td}>{item.projectedStockAtOrder.toFixed(1)}</td>
                     <td style={td}>{item.targetStock.toFixed(1)}</td>
                     <td style={td}>{item.recommendedOrderQty.toFixed(1)}</td>
+                    <td style={td}>
+                      {((parentRecommendedOrderQty * item.share) / 100).toFixed(1)}
+                    </td>
                     <td style={td}>
                       <span style={badgeStyle(item.status)}>{item.status.label}</span>
                     </td>
