@@ -203,7 +203,10 @@ const inputStyle = {
 
 export default function Home() {
   const [orderDate, setOrderDate] = useState("2026-06-01");
-  const [targetMonths, setTargetMonths] = useState(3);
+  const [targetMonths, setTargetMonths] = useState(12);
+  const [safetyMonths, setSafetyMonths] = useState(2);
+  const [productionMonths, setProductionMonths] = useState(2);
+  const [shippingMonths, setShippingMonths] = useState(2);
   const [supplierFilter, setSupplierFilter] = useState("Alle");
 
   const today = new Date("2026-03-18");
@@ -213,6 +216,8 @@ export default function Home() {
     0,
     (orderDateObj - today) / (1000 * 60 * 60 * 24) / 30.44
   );
+
+  const monthsToArrival = monthsUntilOrder + productionMonths + shippingMonths;
 
   const suppliers = ["Alle", ...new Set(data.map((d) => d.supplier))];
 
@@ -230,19 +235,19 @@ export default function Home() {
 
   const overallStock = filteredData.reduce((sum, item) => sum + item.stock, 0);
 
-  const overallProjectedAtOrder = filteredData.reduce((sum, item) => {
+  const overallProjectedAtArrival = filteredData.reduce((sum, item) => {
     const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
-    const projectedSalesUntilOrder = monthlySales * monthsUntilOrder;
-    const projectedStockAtOrder = Math.max(0, item.stock - projectedSalesUntilOrder);
-    return sum + projectedStockAtOrder;
+    const projectedSalesUntilArrival = monthlySales * monthsToArrival;
+    const projectedStockAtArrival = Math.max(0, item.stock - projectedSalesUntilArrival);
+    return sum + projectedStockAtArrival;
   }, 0);
 
   const overallTargetStock = filteredData.reduce((sum, item) => {
     const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
-    return sum + monthlySales * targetMonths;
+    return sum + monthlySales * (targetMonths + safetyMonths);
   }, 0);
 
-  const overallRecommendation = Math.max(0, overallTargetStock - overallProjectedAtOrder);
+  const overallRecommendation = Math.max(0, overallTargetStock - overallProjectedAtArrival);
 
   return (
     <main
@@ -255,7 +260,7 @@ export default function Home() {
     >
       <h1 style={{ marginBottom: 8 }}>Einkaufs-Tool</h1>
       <p style={{ marginBottom: 24, color: "#475569" }}>
-        Lieferanten-Filter, Bestelllogik und saubere Verteilung auf Varianten.
+        Bestelllogik ab Wareneingang mit Produktionszeit, Lieferzeit und Sicherheitsbestand.
       </p>
 
       <div
@@ -309,9 +314,52 @@ export default function Home() {
         </div>
 
         <div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Sicherheitsbestand (Monate)</div>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={safetyMonths}
+            onChange={(e) => setSafetyMonths(Number(e.target.value))}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Produktionszeit (Monate)</div>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={productionMonths}
+            onChange={(e) => setProductionMonths(Number(e.target.value))}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Lieferzeit (Monate)</div>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={shippingMonths}
+            onChange={(e) => setShippingMonths(Number(e.target.value))}
+            style={inputStyle}
+          />
+        </div>
+
+        <div>
           <div style={{ marginBottom: 6, fontWeight: 700 }}>Monate bis Bestellstart</div>
           <div style={{ ...inputStyle, background: "#f8fafc" }}>
             {monthsUntilOrder.toFixed(1)}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ marginBottom: 6, fontWeight: 700 }}>Monate bis Wareneingang</div>
+          <div style={{ ...inputStyle, background: "#f8fafc" }}>
+            {monthsToArrival.toFixed(1)}
           </div>
         </div>
       </div>
@@ -331,7 +379,7 @@ export default function Home() {
         <div><strong>Auswahl:</strong> {supplierFilter}</div>
         <div><strong>Gesamtbestand:</strong> {overallStock.toFixed(0)}</div>
         <div><strong>Monatsverkauf:</strong> {overallMonthlySales.toFixed(1)}</div>
-        <div><strong>Rest bei Bestellstart:</strong> {overallProjectedAtOrder.toFixed(0)}</div>
+        <div><strong>Rest bei Wareneingang:</strong> {overallProjectedAtArrival.toFixed(0)}</div>
         <div><strong>Zielbestand:</strong> {overallTargetStock.toFixed(0)}</div>
         <div><strong>Bestellvorschlag:</strong> {overallRecommendation.toFixed(0)}</div>
       </div>
@@ -339,20 +387,22 @@ export default function Home() {
       {Object.entries(grouped).map(([parent, items]) => {
         const baseItems = items.map((item) => {
           const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
-          const projectedSalesUntilOrder = monthlySales * monthsUntilOrder;
-          const projectedStockAtOrder = Math.max(0, item.stock - projectedSalesUntilOrder);
-          const targetStock = monthlySales * targetMonths;
+          const projectedSalesUntilArrival = monthlySales * monthsToArrival;
+          const projectedStockAtArrival = Math.max(0, item.stock - projectedSalesUntilArrival);
+          const targetStock = monthlySales * (targetMonths + safetyMonths);
           const coverage = getCoverageMonths(item.stock, monthlySales);
           const status = getStatusByCoverage(coverage);
+          const recommendedOrderQty = Math.max(0, targetStock - projectedStockAtArrival);
 
           return {
             ...item,
             monthlySales,
-            projectedSalesUntilOrder,
-            projectedStockAtOrder,
+            projectedSalesUntilArrival,
+            projectedStockAtArrival,
             targetStock,
             coverage,
             status,
+            recommendedOrderQty,
           };
         });
 
@@ -360,14 +410,14 @@ export default function Home() {
         const totalSales = baseItems.reduce((sum, item) => sum + item.sales, 0);
         const totalMonthlySales = baseItems.reduce((sum, item) => sum + item.monthlySales, 0);
         const parentCoverage = getCoverageMonths(totalStock, totalMonthlySales);
-        const parentProjectedStockAtOrder = baseItems.reduce(
-          (sum, item) => sum + item.projectedStockAtOrder,
+        const parentProjectedStockAtArrival = baseItems.reduce(
+          (sum, item) => sum + item.projectedStockAtArrival,
           0
         );
         const parentTargetStock = baseItems.reduce((sum, item) => sum + item.targetStock, 0);
-        const parentRecommendedOrderQty = Math.max(
-          0,
-          parentTargetStock - parentProjectedStockAtOrder
+        const parentRecommendedOrderQty = baseItems.reduce(
+          (sum, item) => sum + item.recommendedOrderQty,
+          0
         );
 
         const enrichedItems = baseItems.map((item) => {
@@ -376,12 +426,9 @@ export default function Home() {
               ? (item.monthlySales / totalMonthlySales) * 100
               : 0;
 
-        const recommendedOrderQty = Math.max(0, item.targetStock - item.projectedStockAtOrder);
-          
           return {
             ...item,
             share,
-            recommendedOrderQty,
           };
         });
 
@@ -423,7 +470,7 @@ export default function Home() {
               <div><strong>Verkäufe:</strong> {totalSales.toFixed(0)}</div>
               <div><strong>Monatsverkauf:</strong> {totalMonthlySales.toFixed(1)}</div>
               <div><strong>Reichweite:</strong> {parentCoverage.toFixed(1)} Monate</div>
-              <div><strong>Rest bei Bestellstart:</strong> {parentProjectedStockAtOrder.toFixed(0)}</div>
+              <div><strong>Rest bei Wareneingang:</strong> {parentProjectedStockAtArrival.toFixed(0)}</div>
               <div><strong>Zielbestand:</strong> {parentTargetStock.toFixed(0)}</div>
               <div><strong>Bestellvorschlag:</strong> {parentRecommendedOrderQty.toFixed(0)}</div>
               <div><span style={badgeStyle(parentStatus)}>{parentStatus.label}</span></div>
@@ -441,8 +488,8 @@ export default function Home() {
                   <th style={th}>Monat</th>
                   <th style={th}>Anteil am Parent</th>
                   <th style={th}>Reichweite</th>
-                  <th style={th}>Verbrauch bis Bestellstart</th>
-                  <th style={th}>Rest bei Bestellstart</th>
+                  <th style={th}>Verbrauch bis Wareneingang</th>
+                  <th style={th}>Rest bei Wareneingang</th>
                   <th style={th}>Zielbestand</th>
                   <th style={th}>Bestellvorschlag</th>
                   <th style={th}>Status</th>
@@ -460,8 +507,8 @@ export default function Home() {
                     <td style={td}>{item.monthlySales.toFixed(1)}</td>
                     <td style={td}>{item.share.toFixed(1)}%</td>
                     <td style={td}>{item.coverage.toFixed(1)} Monate</td>
-                    <td style={td}>{item.projectedSalesUntilOrder.toFixed(1)}</td>
-                    <td style={td}>{item.projectedStockAtOrder.toFixed(1)}</td>
+                    <td style={td}>{item.projectedSalesUntilArrival.toFixed(1)}</td>
+                    <td style={td}>{item.projectedStockAtArrival.toFixed(1)}</td>
                     <td style={td}>{item.targetStock.toFixed(1)}</td>
                     <td style={td}>{item.recommendedOrderQty.toFixed(1)}</td>
                     <td style={td}>
