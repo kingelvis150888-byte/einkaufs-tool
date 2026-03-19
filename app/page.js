@@ -405,6 +405,7 @@ export default function Home() {
           const status = getStatus({
             coverage,
             projectedStockAtArrival,
+            monthlySales,
           });
 
           const recommendedOrderQty = Math.max(0, targetStock - projectedStockAtArrival);
@@ -450,8 +451,8 @@ export default function Home() {
         const parentStatus =
           enrichedItems.some((item) => item.projectedStockAtArrival <= 0)
             ? { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" }
-            : enrichedItems.some((item) => item.status.label === "Kritisch")
-            ? { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" }
+            : enrichedItems.some((item) => item.projectedStockAtArrival < item.monthlySales * 2)
+            ? { label: "Warnung", bg: "#ffedd5", color: "#c2410c" }
             : enrichedItems.some((item) => item.status.label === "Achtung")
             ? { label: "Achtung", bg: "#fef3c7", color: "#b45309" }
             : { label: "OK", bg: "#dcfce7", color: "#166534" };
