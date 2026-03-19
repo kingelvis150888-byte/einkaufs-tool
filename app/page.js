@@ -155,6 +155,10 @@ function getStatus(item) {
     return { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" };
   }
 
+  if (item.projectedStockAtArrival < item.monthlySales * 2) {
+    return { label: "Warnung", bg: "#ffedd5", color: "#c2410c" };
+  }
+
   if (item.coverage < 1) {
     return { label: "Kritisch", bg: "#fee2e2", color: "#b91c1c" };
   }
