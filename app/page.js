@@ -175,7 +175,6 @@ function normalizeHeader(value) {
   return String(value || "")
     .toLowerCase()
     .replace(/"/g, "")
-    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -192,8 +191,33 @@ function parseGermanNumber(value) {
     .replace(",", ".")
     .replace(/[^\d.-]/g, "");
 
-  const num = Number(cleaned);
-  return Number.isNaN(num) ? 0 : num;
+  return Number(cleaned) || 0;
+}
+
+function parseDateFromUnderscoreFormat(text) {
+  const match = String(text).match(/(\d{2})_(\d{2})_(\d{4})/);
+  if (!match) return null;
+
+  const [, dd, mm, yyyy] = match;
+  return new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+}
+
+function extractDateRangeFromFilename(filename) {
+  const matches = String(filename).match(/(\d{2}_\d{2}_\d{4})/g);
+  if (!matches || matches.length < 2) return null;
+
+  const start = parseDateFromUnderscoreFormat(matches[0]);
+  const end = parseDateFromUnderscoreFormat(matches[1]);
+
+  if (!start || !end) return null;
+
+  return { start, end };
+}
+
+function getDaysInclusive(start, end) {
+  const diffMs = end - start;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+  return diffDays > 0 ? diffDays : 0;
 }
 
 function getMonthlySales(sales, monthsObserved) {
@@ -278,8 +302,9 @@ export default function Home() {
   const [shippingMonths, setShippingMonths] = useState(2);
   const [supplierFilter, setSupplierFilter] = useState("Alle");
 
-  const [rawRows, setRawRows] = useState([]);
-  const [parsedRows, setParsedRows] = useState([]);
+  const [stockRows, setStockRows] = useState([]);
+  const [salesRows, setSalesRows] = useState([]);
+  const [salesPeriodInfo, setSalesPeriodInfo] = useState(null);
   const [error, setError] = useState("");
 
   const today = new Date("2026-03-18");
@@ -291,15 +316,13 @@ export default function Home() {
     if (!file) return;
 
     setError("");
-    setRawRows([]);
-    setParsedRows([]);
 
     const reader = new FileReader();
 
     reader.onload = (e) => {
       const text = e.target?.result;
       if (!text) {
-        setError("Datei konnte nicht gelesen werden.");
+        setError("Bestandsdatei konnte nicht gelesen werden.");
         return;
       }
 
@@ -307,13 +330,6 @@ export default function Home() {
         .split(/\r?\n/)
         .map((row) => row.split(";"))
         .filter((row) => row.some((cell) => String(cell).trim() !== ""));
-
-      if (rows.length < 2) {
-        setError("Die CSV enthält zu wenig Daten.");
-        return;
-      }
-
-      setRawRows(rows.slice(0, 10));
 
       const headers = rows[0].map((h) => normalizeHeader(h));
 
@@ -330,7 +346,7 @@ export default function Home() {
         summeLagerstandIndex === -1
       ) {
         setError(
-          "Nicht alle benötigten Spalten wurden gefunden. Benötigt: Artikelnummer, Artikel, Hauptlager, Summe Lagerstand."
+          "Bestandsdatei: Benötigt werden Artikelnummer, Artikel, Hauptlager und Summe Lagerstand."
         );
         return;
       }
@@ -343,7 +359,76 @@ export default function Home() {
         stock: parseGermanNumber(row[summeLagerstandIndex]),
       }));
 
-      setParsedRows(parsed.filter((row) => row.articleNumber));
+      setStockRows(parsed.filter((row) => row.articleNumber));
+    };
+
+    reader.readAsText(file, "utf-8");
+  };
+
+  const handleSalesFileUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setError("");
+    setSalesPeriodInfo(null);
+
+    const filename = file.name;
+    const range = extractDateRangeFromFilename(filename);
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      const text = e.target?.result;
+      if (!text) {
+        setError("Verkaufsdatei konnte nicht gelesen werden.");
+        return;
+      }
+
+      const rows = text
+        .split(/\r?\n/)
+        .map((row) => row.split(";"))
+        .filter((row) => row.some((cell) => String(cell).trim() !== ""));
+
+      const headers = rows[0].map((h) => normalizeHeader(h));
+
+      const skuIndex = headers.findIndex((h) => h === "sku");
+      const unitsIndex = headers.findIndex((h) => h === "units");
+
+      if (skuIndex === -1 || unitsIndex === -1) {
+        setError("Verkaufsdatei: Benötigt werden SKU und Units.");
+        return;
+      }
+
+      let days = 30;
+      let startDateText = "-";
+      let endDateText = "-";
+
+      if (range) {
+        days = getDaysInclusive(range.start, range.end);
+        startDateText = range.start.toLocaleDateString("de-DE");
+        endDateText = range.end.toLocaleDateString("de-DE");
+      }
+
+      const parsed = rows.slice(1).map((row) => {
+        const articleNumber = cleanCell(row[skuIndex]);
+        const units = parseGermanNumber(row[unitsIndex]);
+        const monthlySales = days > 0 ? (units / days) * 30 : units;
+
+        return {
+          articleNumber,
+          units,
+          days,
+          monthlySales,
+        };
+      });
+
+      setSalesRows(parsed.filter((row) => row.articleNumber));
+      setSalesPeriodInfo({
+        filename,
+        days,
+        startDateText,
+        endDateText,
+      });
     };
 
     reader.readAsText(file, "utf-8");
@@ -351,34 +436,41 @@ export default function Home() {
 
   const stockMap = useMemo(() => {
     const map = {};
-    for (const row of parsedRows) {
+    for (const row of stockRows) {
       map[row.articleNumber] = row;
     }
     return map;
-  }, [parsedRows]);
+  }, [stockRows]);
+
+  const salesMap = useMemo(() => {
+    const map = {};
+    for (const row of salesRows) {
+      map[row.articleNumber] = row;
+    }
+    return map;
+  }, [salesRows]);
 
   const mergedBaseData = useMemo(() => {
     return baseData.map((item) => {
-      const imported = stockMap[item.articleNumber];
+      const importedStock = stockMap[item.articleNumber];
+      const importedSales = salesMap[item.articleNumber];
 
-      if (!imported) {
-        return {
-          ...item,
-          stockSource: "Fixer Wert",
-          hauptlager: null,
-          spedpack: null,
-        };
-      }
+      const monthlySalesFromBase = getMonthlySales(item.sales, item.monthsObserved);
 
       return {
         ...item,
-        stock: imported.stock,
-        hauptlager: imported.hauptlager,
-        spedpack: imported.spedpack,
-        stockSource: "CSV",
+        stock: importedStock ? importedStock.stock : item.stock,
+        hauptlager: importedStock ? importedStock.hauptlager : null,
+        spedpack: importedStock ? importedStock.spedpack : null,
+        stockSource: importedStock ? "CSV" : "Fixer Wert",
+
+        sales: importedSales ? importedSales.monthlySales : monthlySalesFromBase,
+        salesUnitsRaw: importedSales ? importedSales.units : item.sales,
+        monthsObserved: 1,
+        salesSource: importedSales ? "Sellerboard CSV" : "Fixer Wert",
       };
     });
-  }, [stockMap]);
+  }, [stockMap, salesMap]);
 
   const filteredData =
     supplierFilter === "Alle"
@@ -401,7 +493,7 @@ export default function Home() {
     );
 
     const monthsToArrival = monthsUntilOrder + productionMonths + shippingMonths;
-    const monthlySales = getMonthlySales(item.sales, item.monthsObserved);
+    const monthlySales = item.sales;
     const projectedSalesUntilArrival = monthlySales * monthsToArrival;
     const projectedStockAtArrival = Math.max(0, item.stock - projectedSalesUntilArrival);
     const targetStock = monthlySales * (targetMonths + safetyMonths);
@@ -452,7 +544,7 @@ export default function Home() {
     >
       <h1 style={{ marginBottom: 8 }}>Einkaufs-Tool</h1>
       <p style={{ marginBottom: 24, color: "#475569" }}>
-        CSV-Bestände werden über Artikelnummer automatisch in die Einkaufsplanung übernommen.
+        Bestand und Verkäufe werden per CSV automatisch übernommen. Verkäufer-Dateien werden auf Monatswerte normalisiert.
       </p>
 
       <div
@@ -547,8 +639,28 @@ export default function Home() {
           marginBottom: 24,
         }}
       >
-        <h3 style={{ marginBottom: 12 }}>Bestandsbericht (ERP) hochladen</h3>
+        <h3 style={{ marginBottom: 12 }}>Bestandsbericht (ERP)</h3>
         <input type="file" accept=".csv" onChange={handleStockFileUpload} />
+      </div>
+
+      <div
+        style={{
+          background: "white",
+          border: "1px solid #e5e7eb",
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 24,
+        }}
+      >
+        <h3 style={{ marginBottom: 12 }}>Verkaufsbericht (Sellerboard)</h3>
+        <input type="file" accept=".csv" onChange={handleSalesFileUpload} />
+        {salesPeriodInfo && (
+          <div style={{ marginTop: 12, color: "#475569" }}>
+            <div><strong>Datei:</strong> {salesPeriodInfo.filename}</div>
+            <div><strong>Zeitraum:</strong> {salesPeriodInfo.startDateText} bis {salesPeriodInfo.endDateText}</div>
+            <div><strong>Tage erkannt:</strong> {salesPeriodInfo.days}</div>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -563,44 +675,6 @@ export default function Home() {
           }}
         >
           {error}
-        </div>
-      )}
-
-      {parsedRows.length > 0 && (
-        <div
-          style={{
-            background: "white",
-            border: "1px solid #e5e7eb",
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 24,
-          }}
-        >
-          <div style={{ marginBottom: 12 }}>
-            <strong>Importierte Bestandszeilen:</strong> {parsedRows.length}
-          </div>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
-            <thead>
-              <tr>
-                <th style={th}>Artikelnummer</th>
-                <th style={th}>Artikel</th>
-                <th style={th}>Hauptlager</th>
-                <th style={th}>Spedpack</th>
-                <th style={th}>Summe Lagerstand</th>
-              </tr>
-            </thead>
-            <tbody>
-              {parsedRows.slice(0, 20).map((row, i) => (
-                <tr key={i}>
-                  <td style={td}>{row.articleNumber}</td>
-                  <td style={td}>{row.article}</td>
-                  <td style={td}>{row.hauptlager}</td>
-                  <td style={td}>{row.spedpack}</td>
-                  <td style={td}>{row.stock}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       )}
 
@@ -626,7 +700,7 @@ export default function Home() {
 
       {Object.entries(groupData(overallItems)).map(([parent, items]) => {
         const totalStock = items.reduce((sum, item) => sum + item.stock, 0);
-        const totalSales = items.reduce((sum, item) => sum + item.sales, 0);
+        const totalSales = items.reduce((sum, item) => sum + item.salesUnitsRaw, 0);
         const totalMonthlySales = items.reduce((sum, item) => sum + item.monthlySales, 0);
         const parentCoverage = getCoverageMonths(totalStock, totalMonthlySales);
         const parentProjectedStockAtArrival = items.reduce(
@@ -675,7 +749,7 @@ export default function Home() {
             >
               <div><strong>Lieferant:</strong> {items[0].supplier}</div>
               <div><strong>Gesamtbestand:</strong> {totalStock.toFixed(0)}</div>
-              <div><strong>Verkäufe:</strong> {totalSales.toFixed(0)}</div>
+              <div><strong>Verkäufe roh:</strong> {totalSales.toFixed(0)}</div>
               <div><strong>Monatsverkauf:</strong> {totalMonthlySales.toFixed(1)}</div>
               <div><strong>Reichweite:</strong> {parentCoverage.toFixed(1)} Monate</div>
               <div><strong>Rest bei Wareneingang:</strong> {parentProjectedStockAtArrival.toFixed(0)}</div>
@@ -689,14 +763,11 @@ export default function Home() {
                 <tr>
                   <th style={th}>Artikelnummer</th>
                   <th style={th}>Variante</th>
-                  <th style={th}>Fixer Termin</th>
-                  <th style={th}>Termin</th>
                   <th style={th}>Bestand</th>
-                  <th style={th}>Quelle</th>
-                  <th style={th}>Hauptlager</th>
-                  <th style={th}>Spedpack</th>
-                  <th style={th}>Monat</th>
-                  <th style={th}>Reichweite</th>
+                  <th style={th}>Bestandsquelle</th>
+                  <th style={th}>Verkäufe roh</th>
+                  <th style={th}>Verkaufsquelle</th>
+                  <th style={th}>Monatswert</th>
                   <th style={th}>Rest bei Wareneingang</th>
                   <th style={th}>Bestellvorschlag</th>
                   <th style={th}>Status</th>
@@ -707,14 +778,11 @@ export default function Home() {
                   <tr key={item.articleNumber}>
                     <td style={td}>{item.articleNumber}</td>
                     <td style={td}>{item.variant}</td>
-                    <td style={td}>{item.hasFixedOrderDate ? "Ja" : "Nein"}</td>
-                    <td style={td}>{item.effectiveOrderDate}</td>
                     <td style={td}>{item.stock}</td>
                     <td style={td}>{item.stockSource}</td>
-                    <td style={td}>{item.hauptlager ?? "-"}</td>
-                    <td style={td}>{item.spedpack ?? "-"}</td>
+                    <td style={td}>{item.salesUnitsRaw.toFixed(1)}</td>
+                    <td style={td}>{item.salesSource}</td>
                     <td style={td}>{item.monthlySales.toFixed(1)}</td>
-                    <td style={td}>{item.coverage.toFixed(1)} Monate</td>
                     <td style={td}>{item.projectedStockAtArrival.toFixed(1)}</td>
                     <td style={td}>{item.recommendedOrderQty.toFixed(1)}</td>
                     <td style={td}>
@@ -727,40 +795,18 @@ export default function Home() {
           </details>
         );
       })}
-
-      {rawRows.length > 0 && (
-        <div
-          style={{
-            background: "white",
-            border: "1px solid #e5e7eb",
-            borderRadius: 12,
-            padding: 16,
-            marginTop: 24,
-          }}
-        >
-          <h3 style={{ marginBottom: 12 }}>Rohansicht der CSV (erste 10 Zeilen)</h3>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
-            <tbody>
-              {rawRows.map((row, i) => (
-                <tr key={i}>
-                  {row.map((cell, j) => (
-                    <td
-                      key={j}
-                      style={{
-                        border: "1px solid #d1d5db",
-                        padding: 6,
-                        fontSize: 13,
-                      }}
-                    >
-                      {cell}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </main>
   );
 }
+
+const th = {
+  border: "1px solid #d1d5db",
+  padding: "10px",
+  textAlign: "left",
+  background: "#f3f4f6",
+};
+
+const td = {
+  border: "1px solid #d1d5db",
+  padding: "10px",
+};
