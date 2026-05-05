@@ -57,30 +57,45 @@ export default function Home() {
 
   // 📦 Stammdaten
   function handleArticles(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+  const file = e.target.files[0];
+  if (!file) return;
 
-    const reader = new FileReader();
+  const reader = new FileReader();
 
-    reader.onload = (ev) => {
-      const rows = ev.target.result.split("\n").map(r => r.split(";"));
+  reader.onload = (ev) => {
+    const rows = ev.target.result
+      .split(/\r?\n/)
+      .map(r => r.includes(";") ? r.split(";") : r.split(","))
+      .filter(r => r.some(c => String(c).trim() !== ""));
 
-      const parsed = rows.slice(1).map(r => ({
-        articleNumber: clean(r[0]),
-        asin: clean(r[1]),
-        name: clean(r[2]),
-        type: clean(r[3]),
-      }));
+    const headers = rows[0].map(h => clean(h).toLowerCase());
 
-      const parentItem = parsed.find(x => x.type === "Gesperrt");
-      const variants = parsed.filter(x => x.type === "Verkauf");
+    const idxNr = headers.findIndex(h => h.includes("artikel"));
+    const idxName = headers.findIndex(h => h.includes("bezeichnung"));
+    const idxType = headers.findIndex(h => h.includes("verkauf"));
+    const idxAsin = headers.findIndex(h => h === "asin");
 
-      setParent(parentItem);
-      setArticles(variants);
-    };
+    if (idxNr === -1 || idxAsin === -1 || idxType === -1) {
+      setError("Stammdaten: Spalten nicht erkannt (Artikelnummer, ASIN oder Verkaufstyp fehlt)");
+      return;
+    }
 
-    reader.readAsText(file);
-  }
+    const parsed = rows.slice(1).map(r => ({
+      articleNumber: clean(r[idxNr]),
+      asin: clean(r[idxAsin]),
+      name: clean(r[idxName]),
+      type: clean(r[idxType]),
+    }));
+
+    const parentItem = parsed.find(x => x.type.toLowerCase().includes("gesperrt"));
+    const variants = parsed.filter(x => x.type.toLowerCase().includes("verkauf"));
+
+    setParent(parentItem || null);
+    setArticles(variants);
+  };
+
+  reader.readAsText(file, "utf-8");
+}
 
   // 📦 ERP
   function handleStock(e) {
